@@ -4,6 +4,7 @@ const express = require("express");
 
 const userRoutes = require("./routes/user.routes");
 const categoryRoutes = require("./routes/category.routes");
+const tagRoutes = require("./routes/tag.routes");
 
 const app = express();
 
@@ -18,8 +19,8 @@ app.get("/", (req, res) => {
 });
 
 app.use("/api/users", userRoutes);
-
 app.use("/api/categories", categoryRoutes);
+app.use("/api/tags", tagRoutes);
 
 // 404
 app.use((req, res) => {
