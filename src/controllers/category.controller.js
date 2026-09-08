@@ -1,6 +1,7 @@
-const { v4: uuidv4 } = require("uuid");
+const { v4: uuidv4, validate: uuidValidate } = require("uuid");
 
 const pool = require("../db/connection");
+
 const { categoryDecorator } = require("../decorators/category.decorator");
 
 const index = async (req, res) => {
@@ -22,6 +23,12 @@ const index = async (req, res) => {
 const show = async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (!uuidValidate(id)) {
+      return res.status(400).json({
+        message: "Invalid category ID",
+      });
+    }
 
     const [categories] = await pool.query(
       "SELECT * FROM categories WHERE id = ?",
@@ -56,13 +63,20 @@ const store = async (req, res) => {
       });
     }
 
+    // Validate user_id UUID format
+    if (!uuidValidate(user_id)) {
+      return res.status(400).json({
+        message: "Invalid user ID",
+      });
+    }
+
     const id = uuidv4();
 
     await pool.query(
       `
-            INSERT INTO categories (id, name, user_id)
-            VALUES (?, ?, ?)
-            `,
+        INSERT INTO categories (id, name, user_id)
+        VALUES (?, ?, ?)
+      `,
       [id, name, user_id],
     );
 
@@ -88,6 +102,13 @@ const update = async (req, res) => {
     const { id } = req.params;
     const { name } = req.body;
 
+    // Validate UUID format
+    if (!uuidValidate(id)) {
+      return res.status(400).json({
+        message: "Invalid category ID",
+      });
+    }
+
     if (!name) {
       return res.status(400).json({
         message: "Name is required",
@@ -96,13 +117,14 @@ const update = async (req, res) => {
 
     const [result] = await pool.query(
       `
-            UPDATE categories
-            SET name = ?
-            WHERE id = ?
-            `,
+        UPDATE categories
+        SET name = ?
+        WHERE id = ?
+      `,
       [name, id],
     );
 
+    // Validate if category exists
     if (result.affectedRows === 0) {
       return res.status(404).json({
         message: "Category not found",
@@ -115,7 +137,6 @@ const update = async (req, res) => {
     );
 
     return res.status(200).json({
-      message: "Category updated successfully",
       category: categoryDecorator(categories[0]),
     });
   } catch (error) {
@@ -131,18 +152,30 @@ const destroy = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [result] = await pool.query("DELETE FROM categories WHERE id = ?", [
-      id,
-    ]);
+    if (!uuidValidate(id)) {
+      return res.status(400).json({
+        message: "Invalid category ID",
+      });
+    }
 
-    if (result.affectedRows === 0) {
+    const [categories] = await pool.query(
+      "SELECT * FROM categories WHERE id = ?",
+      [id],
+    );
+
+    if (categories.length === 0) {
       return res.status(404).json({
         message: "Category not found",
       });
     }
 
+    const category = categories[0];
+
+    await pool.query("DELETE FROM categories WHERE id = ?", [id]);
+
     return res.status(200).json({
       message: "Category deleted successfully",
+      category: categoryDecorator(category),
     });
   } catch (error) {
     console.error(error);
