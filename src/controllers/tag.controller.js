@@ -1,5 +1,7 @@
-const { v4: uuidv4 } = require("uuid");
+const { v4: uuidv4, validate: uuidValidate } = require("uuid");
+
 const pool = require("../db/connection");
+
 const { tagDecorator } = require("../decorators/tag.decorator");
 
 const index = async (req, res) => {
@@ -21,6 +23,12 @@ const index = async (req, res) => {
 const show = async (req, res) => {
   try {
     const { id } = req.params;
+
+    if (!uuidValidate(id)) {
+      return res.status(400).json({
+        message: "Invalid tag ID",
+      });
+    }
 
     const [tags] = await pool.query("SELECT * FROM tags WHERE id = ?", [id]);
 
@@ -52,11 +60,29 @@ const store = async (req, res) => {
       });
     }
 
+    if (!uuidValidate(user_id)) {
+      return res.status(400).json({
+        message: "Invalid user ID",
+      });
+    }
+
+    const [users] = await pool.query("SELECT id FROM users WHERE id = ?", [
+      user_id,
+    ]);
+
+    if (users.length === 0) {
+      return res.status(404).json({
+        message: "User not found",
+      });
+    }
+
     const id = uuidv4();
 
     await pool.query(
-      `INSERT INTO tags (id, name, user_id)
-             VALUES (?, ?, ?)`,
+      `
+        INSERT INTO tags (id, name, user_id)
+        VALUES (?, ?, ?)
+      `,
       [id, name, user_id],
     );
 
@@ -82,6 +108,12 @@ const update = async (req, res) => {
     const { id } = req.params;
     const { name } = req.body;
 
+    if (!uuidValidate(id)) {
+      return res.status(400).json({
+        message: "Invalid tag ID",
+      });
+    }
+
     if (!name) {
       return res.status(400).json({
         message: "Name is required",
@@ -89,9 +121,11 @@ const update = async (req, res) => {
     }
 
     const [result] = await pool.query(
-      `UPDATE tags
-             SET name = ?
-             WHERE id = ?`,
+      `
+        UPDATE tags
+        SET name = ?
+        WHERE id = ?
+      `,
       [name, id],
     );
 
@@ -120,16 +154,27 @@ const destroy = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [result] = await pool.query("DELETE FROM tags WHERE id = ?", [id]);
+    if (!uuidValidate(id)) {
+      return res.status(400).json({
+        message: "Invalid tag ID",
+      });
+    }
 
-    if (result.affectedRows === 0) {
+    const [tags] = await pool.query("SELECT * FROM tags WHERE id = ?", [id]);
+
+    if (tags.length === 0) {
       return res.status(404).json({
         message: "Tag not found",
       });
     }
 
+    const tag = tags[0];
+
+    await pool.query("DELETE FROM tags WHERE id = ?", [id]);
+
     return res.status(200).json({
       message: "Tag deleted successfully",
+      tag: tagDecorator(tag),
     });
   } catch (error) {
     console.error(error);
