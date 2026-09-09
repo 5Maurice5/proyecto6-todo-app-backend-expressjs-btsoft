@@ -1,7 +1,6 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const { v4: uuidv4 } = require("uuid");
-
 const pool = require("../db/connection");
 const { userDecorator } = require("../decorators/user.decorator");
 
@@ -21,14 +20,13 @@ const register = async (req, res) => {
 
     await pool.query(
       `
-            INSERT INTO users (id, name, email, password)
-            VALUES (?, ?, ?, ?)
-            `,
+        INSERT INTO users (id, name, email, password)
+        VALUES (?, ?, ?, ?)
+      `,
       [id, name, email, hashedPassword],
     );
 
     return res.status(201).json({
-      message: "User registered successfully",
       user: userDecorator({
         id,
         name,
@@ -80,10 +78,12 @@ const login = async (req, res) => {
       });
     }
 
+    const userLogin = userDecorator(user);
+
     const token = jwt.sign(
       {
-        id: user.id,
-        email: user.email,
+        id: userLogin.id,
+        email: userLogin.email,
       },
       process.env.JWT_SECRET,
       {
@@ -92,9 +92,8 @@ const login = async (req, res) => {
     );
 
     return res.status(200).json({
-      message: "Login successful",
       token,
-      user: userDecorator(user),
+      user: userLogin,
     });
   } catch (error) {
     console.error(error);
