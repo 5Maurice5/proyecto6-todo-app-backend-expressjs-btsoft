@@ -132,6 +132,7 @@ const update = async (req, res) => {
       [name, id],
     );
 
+    // Validate if category exists
     if (result.affectedRows === 0) {
       return res.status(404).json({
         message: "Category not found",
@@ -144,7 +145,6 @@ const update = async (req, res) => {
     );
 
     return res.status(200).json({
-      message: "Category updated successfully",
       category: categoryDecorator(categories[0]),
     });
   } catch (error) {
