@@ -3,6 +3,7 @@ require("dotenv").config();
 const express = require("express");
 
 const userRoutes = require("./routes/user.routes");
+const categoryRoutes = require("./routes/category.routes");
 
 const app = express();
 
@@ -18,6 +19,9 @@ app.get("/", (req, res) => {
 
 app.use("/api/users", userRoutes);
 
+app.use("/api/categories", categoryRoutes);
+
+// 404
 app.use((req, res) => {
   res.status(404).json({
     error: "Not Found",
