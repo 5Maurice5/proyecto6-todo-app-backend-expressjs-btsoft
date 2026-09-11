@@ -8,16 +8,18 @@ const {
   destroy,
 } = require("../controllers/category.controller");
 
+const { authMiddleware } = require("../middlewares/auth.middleware");
+
 const router = express.Router();
 
-router.get("/", index);
+router.get("/", authMiddleware, index);
 
-router.get("/:id", show);
+router.get("/:id", authMiddleware, show);
 
-router.post("/", store);
+router.post("/", authMiddleware, store);
 
-router.put("/:id", update);
+router.put("/:id", authMiddleware, update);
 
-router.delete("/:id", destroy);
+router.delete("/:id", authMiddleware, destroy);
 
 module.exports = router;
