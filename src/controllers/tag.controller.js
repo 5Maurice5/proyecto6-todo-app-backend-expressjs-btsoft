@@ -6,7 +6,7 @@ const { tagDecorator } = require("../decorators/tag.decorator");
 
 const index = async (req, res) => {
   try {
-    const [tags] = await pool.query("SELECT * FROM tags");
+    const [tags] = await pool.query("SELECT id, name, user_id FROM tags");
 
     return res.status(200).json({
       tags: tags.map(tagDecorator),
@@ -30,7 +30,10 @@ const show = async (req, res) => {
       });
     }
 
-    const [tags] = await pool.query("SELECT * FROM tags WHERE id = ?", [id]);
+    const [tags] = await pool.query(
+      "SELECT id, name, user_id FROM tags WHERE id = ?",
+      [id],
+    );
 
     if (tags.length === 0) {
       return res.status(404).json({
@@ -135,7 +138,10 @@ const update = async (req, res) => {
       });
     }
 
-    const [tags] = await pool.query("SELECT * FROM tags WHERE id = ?", [id]);
+    const [tags] = await pool.query(
+      "SELECT id, name, user_id FROM tags WHERE id = ?",
+      [id],
+    );
 
     return res.status(200).json({
       message: "Tag updated successfully",
@@ -160,7 +166,10 @@ const destroy = async (req, res) => {
       });
     }
 
-    const [tags] = await pool.query("SELECT * FROM tags WHERE id = ?", [id]);
+    const [tags] = await pool.query(
+      "SELECT id, name, user_id FROM tags WHERE id = ?",
+      [id],
+    );
 
     if (tags.length === 0) {
       return res.status(404).json({
