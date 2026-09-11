@@ -1,11 +1,21 @@
 const { v4: uuidv4 } = require("uuid");
 
 const pool = require("../db/connection");
+
 const { categoryDecorator } = require("../decorators/category.decorator");
 
 const index = async (req, res) => {
   try {
-    const [categories] = await pool.query("SELECT * FROM categories");
+    const userId = req.user.id;
+
+    const [categories] = await pool.query(
+      `
+            SELECT *
+            FROM categories
+            WHERE user_id = ?
+            `,
+      [userId],
+    );
 
     return res.status(200).json({
       categories: categories.map(categoryDecorator),
@@ -22,10 +32,16 @@ const index = async (req, res) => {
 const show = async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user.id;
 
     const [categories] = await pool.query(
-      "SELECT * FROM categories WHERE id = ?",
-      [id],
+      `
+            SELECT *
+            FROM categories
+            WHERE id = ?
+            AND user_id = ?
+            `,
+      [id, userId],
     );
 
     if (categories.length === 0) {
@@ -48,11 +64,13 @@ const show = async (req, res) => {
 
 const store = async (req, res) => {
   try {
-    const { name, user_id } = req.body;
+    const { name } = req.body;
 
-    if (!name || !user_id) {
+    const userId = req.user.id;
+
+    if (!name) {
       return res.status(400).json({
-        message: "Name and user_id are required",
+        message: "Name is required",
       });
     }
 
@@ -63,7 +81,7 @@ const store = async (req, res) => {
             INSERT INTO categories (id, name, user_id)
             VALUES (?, ?, ?)
             `,
-      [id, name, user_id],
+      [id, name, userId],
     );
 
     return res.status(201).json({
@@ -71,11 +89,17 @@ const store = async (req, res) => {
       category: categoryDecorator({
         id,
         name,
-        user_id,
+        user_id: userId,
       }),
     });
   } catch (error) {
     console.error(error);
+
+    if (error.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({
+        message: "Category already exists",
+      });
+    }
 
     return res.status(500).json({
       message: "Internal server error",
@@ -88,6 +112,8 @@ const update = async (req, res) => {
     const { id } = req.params;
     const { name } = req.body;
 
+    const userId = req.user.id;
+
     if (!name) {
       return res.status(400).json({
         message: "Name is required",
@@ -99,8 +125,9 @@ const update = async (req, res) => {
             UPDATE categories
             SET name = ?
             WHERE id = ?
+            AND user_id = ?
             `,
-      [name, id],
+      [name, id, userId],
     );
 
     if (result.affectedRows === 0) {
@@ -110,8 +137,13 @@ const update = async (req, res) => {
     }
 
     const [categories] = await pool.query(
-      "SELECT * FROM categories WHERE id = ?",
-      [id],
+      `
+            SELECT *
+            FROM categories
+            WHERE id = ?
+            AND user_id = ?
+            `,
+      [id, userId],
     );
 
     return res.status(200).json({
@@ -120,6 +152,12 @@ const update = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+
+    if (error.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({
+        message: "Category already exists",
+      });
+    }
 
     return res.status(500).json({
       message: "Internal server error",
@@ -131,9 +169,16 @@ const destroy = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [result] = await pool.query("DELETE FROM categories WHERE id = ?", [
-      id,
-    ]);
+    const userId = req.user.id;
+
+    const [result] = await pool.query(
+      `
+            DELETE FROM categories
+            WHERE id = ?
+            AND user_id = ?
+            `,
+      [id, userId],
+    );
 
     if (result.affectedRows === 0) {
       return res.status(404).json({
@@ -146,6 +191,12 @@ const destroy = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+
+    if (error.code === "ER_ROW_IS_REFERENCED_2") {
+      return res.status(409).json({
+        message: "Category cannot be deleted because it has associated tasks",
+      });
+    }
 
     return res.status(500).json({
       message: "Internal server error",
