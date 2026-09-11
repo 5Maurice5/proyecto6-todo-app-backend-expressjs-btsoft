@@ -6,6 +6,7 @@ const userRoutes = require("./routes/user.routes");
 const categoryRoutes = require("./routes/category.routes");
 const tagRoutes = require("./routes/tag.routes");
 const taskRoutes = require("./routes/task.routes");
+const authRoutes = require("./routes/auth.routes");
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/tags", tagRoutes);
 app.use("/api/tasks", taskRoutes);
+app.use("/api/auth", authRoutes);
 
 // 404
 app.use((req, res) => {
