@@ -1,17 +1,25 @@
 require("dotenv").config();
 
 const express = require("express");
+const cors = require("cors");
 
 const userRoutes = require("./routes/user.routes");
 const categoryRoutes = require("./routes/category.routes");
 const tagRoutes = require("./routes/tag.routes");
 const taskRoutes = require("./routes/task.routes");
 const authRoutes = require("./routes/auth.routes");
+
 const errorHandler = require("./middlewares/error-handler.middleware");
 
 const app = express();
 
 const PORT = process.env.PORT || 3000;
+
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+  }),
+);
 
 app.use(express.json());
 

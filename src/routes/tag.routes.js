@@ -16,6 +16,7 @@ router.get("/", authMiddleware, index);
 router.get("/:id", authMiddleware, show);
 router.post("/", authMiddleware, store);
 router.put("/:id", authMiddleware, update);
+router.patch("/:id", authMiddleware, update);
 router.delete("/:id", authMiddleware, destroy);
 
 module.exports = router;

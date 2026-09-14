@@ -35,4 +35,14 @@ const errorHandler = (error, req, res, next) => {
   });
 };
 
+const AppError = require("./app-error");
+
+const notFound = (model, id) => {
+  throw new AppError(
+    `No query results for model [App\\Models\\${model}] ${id}`,
+    404,
+  );
+};
+
+module.exports = notFound;
 module.exports = errorHandler;
