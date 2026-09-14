@@ -2,16 +2,14 @@ const { v4: uuidv4, validate: uuidValidate } = require("uuid");
 
 const pool = require("../db/connection");
 
-const { categoryDecorator } = require("../decorators/category.decorator");
+const { tagDecorator } = require("../decorators/tag.decorator");
 
 const index = async (req, res) => {
   try {
-    const [categories] = await pool.query(
-      "SELECT id, name, user_id FROM categories",
-    );
+    const [tags] = await pool.query("SELECT id, name, user_id FROM tags");
 
     return res.status(200).json({
-      categories: categories.map(categoryDecorator),
+      tags: tags.map(tagDecorator),
     });
   } catch (error) {
     console.error(error);
@@ -28,23 +26,23 @@ const show = async (req, res) => {
 
     if (!uuidValidate(id)) {
       return res.status(400).json({
-        message: "Invalid category ID",
+        message: "Invalid tag ID",
       });
     }
 
-    const [categories] = await pool.query(
-      "SELECT id, name, user_id FROM categories WHERE id = ?",
+    const [tags] = await pool.query(
+      "SELECT id, name, user_id FROM tags WHERE id = ?",
       [id],
     );
 
-    if (categories.length === 0) {
+    if (tags.length === 0) {
       return res.status(404).json({
-        message: "Category not found",
+        message: "Tag not found",
       });
     }
 
     return res.status(200).json({
-      category: categoryDecorator(categories[0]),
+      tag: tagDecorator(tags[0]),
     });
   } catch (error) {
     console.error(error);
@@ -85,15 +83,15 @@ const store = async (req, res) => {
 
     await pool.query(
       `
-        INSERT INTO categories (id, name, user_id)
+        INSERT INTO tags (id, name, user_id)
         VALUES (?, ?, ?)
       `,
       [id, name, user_id],
     );
 
     return res.status(201).json({
-      message: "Category created successfully",
-      category: categoryDecorator({
+      message: "Tag created successfully",
+      tag: tagDecorator({
         id,
         name,
         user_id,
@@ -115,7 +113,7 @@ const update = async (req, res) => {
 
     if (!uuidValidate(id)) {
       return res.status(400).json({
-        message: "Invalid category ID",
+        message: "Invalid tag ID",
       });
     }
 
@@ -127,7 +125,7 @@ const update = async (req, res) => {
 
     const [result] = await pool.query(
       `
-        UPDATE categories
+        UPDATE tags
         SET name = ?
         WHERE id = ?
       `,
@@ -136,17 +134,18 @@ const update = async (req, res) => {
 
     if (result.affectedRows === 0) {
       return res.status(404).json({
-        message: "Category not found",
+        message: "Tag not found",
       });
     }
 
-    const [categories] = await pool.query(
-      "SELECT id, name, user_id FROM categories WHERE id = ?",
+    const [tags] = await pool.query(
+      "SELECT id, name, user_id FROM tags WHERE id = ?",
       [id],
     );
 
     return res.status(200).json({
-      category: categoryDecorator(categories[0]),
+      message: "Tag updated successfully",
+      tag: tagDecorator(tags[0]),
     });
   } catch (error) {
     console.error(error);
@@ -163,28 +162,28 @@ const destroy = async (req, res) => {
 
     if (!uuidValidate(id)) {
       return res.status(400).json({
-        message: "Invalid category ID",
+        message: "Invalid tag ID",
       });
     }
 
-    const [categories] = await pool.query(
-      "SELECT id, name, user_id FROM categories WHERE id = ?",
+    const [tags] = await pool.query(
+      "SELECT id, name, user_id FROM tags WHERE id = ?",
       [id],
     );
 
-    if (categories.length === 0) {
+    if (tags.length === 0) {
       return res.status(404).json({
-        message: "Category not found",
+        message: "Tag not found",
       });
     }
 
-    const category = categories[0];
+    const tag = tags[0];
 
-    await pool.query("DELETE FROM categories WHERE id = ?", [id]);
+    await pool.query("DELETE FROM tags WHERE id = ?", [id]);
 
     return res.status(200).json({
-      message: "Category deleted successfully",
-      category: categoryDecorator(category),
+      message: "Tag deleted successfully",
+      tag: tagDecorator(tag),
     });
   } catch (error) {
     console.error(error);
