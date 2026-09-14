@@ -1,144 +1,140 @@
 const { v4: uuidv4 } = require("uuid");
 
 const pool = require("../db/connection");
-
 const { tagDecorator } = require("../decorators/tag.decorator");
 const AppError = require("../utils/app-error");
 const catchAsync = require("../utils/catch-async");
+const paginate = require("../utils/paginate");
+
+const notFound = (id) => {
+  throw new AppError(
+    `No query results for model [App\\Models\\Tag] ${id}`,
+    404,
+  );
+};
+
+const validateName = async ({ name, excludeId, required }) => {
+  const errors = {};
+
+  if (required && !name) {
+    errors.name = ["The name field is required."];
+  } else if (name !== undefined) {
+    if (typeof name !== "string") {
+      errors.name = ["The name must be a string."];
+    } else if (name.length > 255) {
+      errors.name = ["The name must not be greater than 255 characters."];
+    } else {
+      const query = excludeId
+        ? "SELECT id FROM tags WHERE name = ? AND id != ?"
+        : "SELECT id FROM tags WHERE name = ?";
+      const params = excludeId ? [name, excludeId] : [name];
+
+      const [existing] = await pool.query(query, params);
+
+      if (existing.length > 0) {
+        errors.name = ["The name has already been taken."];
+      }
+    }
+  }
+
+  if (Object.keys(errors).length > 0) {
+    throw new AppError("The given data was invalid.", 422, errors);
+  }
+};
 
 const index = catchAsync(async (req, res) => {
-  const userId = req.user.id;
+  const page = parseInt(req.query.page, 10) || 1;
 
-  const [tags] = await pool.query(
-    `
-      SELECT id, name, user_id
+  const { rows, meta, links } = await paginate(pool, {
+    baseQuery: `
+      SELECT id, name, created_at, updated_at
       FROM tags
-      WHERE user_id = ?
+      ORDER BY id ASC
     `,
-    [userId],
-  );
+    countQuery: "SELECT COUNT(*) as total FROM tags",
+    page,
+    perPage: 10,
+    path: "/api/tags",
+  });
 
   return res.status(200).json({
-    tags: tags.map(tagDecorator),
+    data: rows.map(tagDecorator),
+    links,
+    meta,
   });
 });
 
 const show = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const userId = req.user.id;
 
   const [tags] = await pool.query(
-    `
-      SELECT id, name, user_id
-      FROM tags
-      WHERE id = ?
-      AND user_id = ?
-    `,
-    [id, userId],
+    "SELECT id, name, created_at, updated_at FROM tags WHERE id = ?",
+    [id],
   );
 
   if (tags.length === 0) {
-    throw new AppError("Tag not found", 404);
+    notFound(id);
   }
 
-  return res.status(200).json({
-    tag: tagDecorator(tags[0]),
-  });
+  return res.status(200).json({ data: tagDecorator(tags[0]) });
 });
 
 const store = catchAsync(async (req, res) => {
   const { name } = req.body;
-  const userId = req.user.id;
 
-  if (!name) {
-    throw new AppError("Name is required", 400);
-  }
+  await validateName({ name, required: true });
 
   const id = uuidv4();
+  const userId = req.user.id;
 
-  await pool.query(
-    `
-      INSERT INTO tags (id, name, user_id)
-      VALUES (?, ?, ?)
-    `,
-    [id, name, userId],
+  await pool.query("INSERT INTO tags (id, name, user_id) VALUES (?, ?, ?)", [
+    id,
+    name,
+    userId,
+  ]);
+
+  const [tags] = await pool.query(
+    "SELECT id, name, created_at, updated_at FROM tags WHERE id = ?",
+    [id],
   );
 
-  return res.status(201).json({
-    message: "Tag created successfully",
-    tag: tagDecorator({
-      id,
-      name,
-      user_id: userId,
-    }),
-  });
+  return res.status(201).json({ data: tagDecorator(tags[0]) });
 });
 
 const update = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { name } = req.body;
-  const userId = req.user.id;
 
-  if (!name) {
-    throw new AppError("Name is required", 400);
+  const [existing] = await pool.query("SELECT id FROM tags WHERE id = ?", [id]);
+
+  if (existing.length === 0) {
+    notFound(id);
   }
 
-  const [result] = await pool.query(
-    `
-      UPDATE tags
-      SET name = ?
-      WHERE id = ?
-      AND user_id = ?
-    `,
-    [name, id, userId],
-  );
+  await validateName({ name, excludeId: id, required: false });
 
-  if (result.affectedRows === 0) {
-    throw new AppError("Tag not found", 404);
+  if (name !== undefined) {
+    await pool.query("UPDATE tags SET name = ? WHERE id = ?", [name, id]);
   }
 
   const [tags] = await pool.query(
-    `
-      SELECT id, name, user_id
-      FROM tags
-      WHERE id = ?
-      AND user_id = ?
-    `,
-    [id, userId],
+    "SELECT id, name, created_at, updated_at FROM tags WHERE id = ?",
+    [id],
   );
 
-  return res.status(200).json({
-    message: "Tag updated successfully",
-    tag: tagDecorator(tags[0]),
-  });
+  return res.status(200).json({ data: tagDecorator(tags[0]) });
 });
 
 const destroy = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const userId = req.user.id;
 
-  const [result] = await pool.query(
-    `
-      DELETE FROM tags
-      WHERE id = ?
-      AND user_id = ?
-    `,
-    [id, userId],
-  );
+  const [result] = await pool.query("DELETE FROM tags WHERE id = ?", [id]);
 
   if (result.affectedRows === 0) {
-    throw new AppError("Tag not found", 404);
+    notFound(id);
   }
 
-  return res.status(200).json({
-    message: "Tag deleted successfully",
-  });
+  return res.status(200).json({ message: "Etiqueta eliminada" });
 });
 
-module.exports = {
-  index,
-  show,
-  store,
-  update,
-  destroy,
-};
+module.exports = { index, show, store, update, destroy };

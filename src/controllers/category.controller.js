@@ -1,144 +1,144 @@
 const { v4: uuidv4 } = require("uuid");
 
 const pool = require("../db/connection");
-
 const { categoryDecorator } = require("../decorators/category.decorator");
 const AppError = require("../utils/app-error");
 const catchAsync = require("../utils/catch-async");
+const paginate = require("../utils/paginate");
+
+const notFound = (id) => {
+  throw new AppError(
+    `No query results for model [App\\Models\\Category] ${id}`,
+    404,
+  );
+};
+
+const validateName = async ({ name, excludeId, required }) => {
+  const errors = {};
+
+  if (required && !name) {
+    errors.name = ["The name field is required."];
+  } else if (name !== undefined) {
+    if (typeof name !== "string") {
+      errors.name = ["The name must be a string."];
+    } else if (name.length > 255) {
+      errors.name = ["The name must not be greater than 255 characters."];
+    } else {
+      const query = excludeId
+        ? "SELECT id FROM categories WHERE name = ? AND id != ?"
+        : "SELECT id FROM categories WHERE name = ?";
+      const params = excludeId ? [name, excludeId] : [name];
+
+      const [existing] = await pool.query(query, params);
+
+      if (existing.length > 0) {
+        errors.name = ["The name has already been taken."];
+      }
+    }
+  }
+
+  if (Object.keys(errors).length > 0) {
+    throw new AppError("The given data was invalid.", 422, errors);
+  }
+};
 
 const index = catchAsync(async (req, res) => {
-  const userId = req.user.id;
+  const page = parseInt(req.query.page, 10) || 1;
 
-  const [categories] = await pool.query(
-    `
-      SELECT id, name, user_id
+  const { rows, meta, links } = await paginate(pool, {
+    baseQuery: `
+      SELECT id, name, created_at, updated_at
       FROM categories
-      WHERE user_id = ?
+      ORDER BY id ASC
     `,
-    [userId],
-  );
+    countQuery: "SELECT COUNT(*) as total FROM categories",
+    page,
+    perPage: 10,
+    path: "/api/categories",
+  });
 
   return res.status(200).json({
-    categories: categories.map(categoryDecorator),
+    data: rows.map(categoryDecorator),
+    links,
+    meta,
   });
 });
 
 const show = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const userId = req.user.id;
 
   const [categories] = await pool.query(
-    `
-      SELECT id, name, user_id
-      FROM categories
-      WHERE id = ?
-      AND user_id = ?
-    `,
-    [id, userId],
+    "SELECT id, name, created_at, updated_at FROM categories WHERE id = ?",
+    [id],
   );
 
   if (categories.length === 0) {
-    throw new AppError("Category not found", 404);
+    notFound(id);
   }
 
-  return res.status(200).json({
-    category: categoryDecorator(categories[0]),
-  });
+  return res.status(200).json({ data: categoryDecorator(categories[0]) });
 });
 
 const store = catchAsync(async (req, res) => {
   const { name } = req.body;
-  const userId = req.user.id;
 
-  if (!name) {
-    throw new AppError("Name is required", 400);
-  }
+  await validateName({ name, required: true });
 
   const id = uuidv4();
+  const userId = req.user.id;
 
   await pool.query(
-    `
-      INSERT INTO categories (id, name, user_id)
-      VALUES (?, ?, ?)
-    `,
+    "INSERT INTO categories (id, name, user_id) VALUES (?, ?, ?)",
     [id, name, userId],
   );
 
-  return res.status(201).json({
-    message: "Category created successfully",
-    category: categoryDecorator({
-      id,
-      name,
-      user_id: userId,
-    }),
-  });
+  const [categories] = await pool.query(
+    "SELECT id, name, created_at, updated_at FROM categories WHERE id = ?",
+    [id],
+  );
+
+  return res.status(201).json({ data: categoryDecorator(categories[0]) });
 });
 
 const update = catchAsync(async (req, res) => {
   const { id } = req.params;
   const { name } = req.body;
-  const userId = req.user.id;
 
-  if (!name) {
-    throw new AppError("Name is required", 400);
-  }
-
-  const [result] = await pool.query(
-    `
-      UPDATE categories
-      SET name = ?
-      WHERE id = ?
-      AND user_id = ?
-    `,
-    [name, id, userId],
+  const [existing] = await pool.query(
+    "SELECT id FROM categories WHERE id = ?",
+    [id],
   );
 
-  if (result.affectedRows === 0) {
-    throw new AppError("Category not found", 404);
+  if (existing.length === 0) {
+    notFound(id);
+  }
+
+  await validateName({ name, excludeId: id, required: false });
+
+  if (name !== undefined) {
+    await pool.query("UPDATE categories SET name = ? WHERE id = ?", [name, id]);
   }
 
   const [categories] = await pool.query(
-    `
-      SELECT id, name, user_id
-      FROM categories
-      WHERE id = ?
-      AND user_id = ?
-    `,
-    [id, userId],
+    "SELECT id, name, created_at, updated_at FROM categories WHERE id = ?",
+    [id],
   );
 
-  return res.status(200).json({
-    message: "Category updated successfully",
-    category: categoryDecorator(categories[0]),
-  });
+  return res.status(200).json({ data: categoryDecorator(categories[0]) });
 });
 
 const destroy = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const userId = req.user.id;
 
-  const [result] = await pool.query(
-    `
-      DELETE FROM categories
-      WHERE id = ?
-      AND user_id = ?
-    `,
-    [id, userId],
-  );
+  const [result] = await pool.query("DELETE FROM categories WHERE id = ?", [
+    id,
+  ]);
 
   if (result.affectedRows === 0) {
-    throw new AppError("Category not found", 404);
+    notFound(id);
   }
 
-  return res.status(200).json({
-    message: "Category deleted successfully",
-  });
+  return res.status(200).json({ message: "Categoría eliminada" });
 });
 
-module.exports = {
-  index,
-  show,
-  store,
-  update,
-  destroy,
-};
+module.exports = { index, show, store, update, destroy };
