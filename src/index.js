@@ -7,6 +7,7 @@ const categoryRoutes = require("./routes/category.routes");
 const tagRoutes = require("./routes/tag.routes");
 const taskRoutes = require("./routes/task.routes");
 const authRoutes = require("./routes/auth.routes");
+const errorHandler = require("./middlewares/error-handler.middleware");
 
 const app = express();
 
@@ -26,12 +27,13 @@ app.use("/api/tags", tagRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/auth", authRoutes);
 
-// 404
 app.use((req, res) => {
   res.status(404).json({
     error: "Not Found",
   });
 });
+
+app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
