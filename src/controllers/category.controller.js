@@ -6,7 +6,9 @@ const { categoryDecorator } = require("../decorators/category.decorator");
 
 const index = async (req, res) => {
   try {
-    const [categories] = await pool.query("SELECT * FROM categories");
+    const [categories] = await pool.query(
+      "SELECT id, name, user_id FROM categories",
+    );
 
     return res.status(200).json({
       categories: categories.map(categoryDecorator),
@@ -31,7 +33,7 @@ const show = async (req, res) => {
     }
 
     const [categories] = await pool.query(
-      "SELECT * FROM categories WHERE id = ?",
+      "SELECT id, name, user_id FROM categories WHERE id = ?",
       [id],
     );
 
@@ -132,7 +134,6 @@ const update = async (req, res) => {
       [name, id],
     );
 
-    // Validate if category exists
     if (result.affectedRows === 0) {
       return res.status(404).json({
         message: "Category not found",
@@ -140,7 +141,7 @@ const update = async (req, res) => {
     }
 
     const [categories] = await pool.query(
-      "SELECT * FROM categories WHERE id = ?",
+      "SELECT id, name, user_id FROM categories WHERE id = ?",
       [id],
     );
 
@@ -167,7 +168,7 @@ const destroy = async (req, res) => {
     }
 
     const [categories] = await pool.query(
-      "SELECT * FROM categories WHERE id = ?",
+      "SELECT id, name, user_id FROM categories WHERE id = ?",
       [id],
     );
 

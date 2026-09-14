@@ -88,14 +88,23 @@ const getTagsByTaskIds = async (connection, taskIds) => {
   return tagsByTask;
 };
 
+const TASK_COLUMNS = `
+  tasks.id,
+  tasks.title,
+  tasks.description,
+  tasks.status,
+  tasks.category_id,
+  tasks.user_id,
+  categories.id AS category_id,
+  categories.name AS category_name,
+  categories.user_id AS category_user_id
+`;
+
 const index = async (req, res) => {
   try {
     const [tasks] = await pool.query(`
       SELECT
-        tasks.*,
-        categories.id AS category_id,
-        categories.name AS category_name,
-        categories.user_id AS category_user_id
+        ${TASK_COLUMNS}
       FROM tasks
       INNER JOIN categories
         ON tasks.category_id = categories.id
@@ -140,10 +149,7 @@ const show = async (req, res) => {
     const [tasks] = await pool.query(
       `
         SELECT
-          tasks.*,
-          categories.id AS category_id,
-          categories.name AS category_name,
-          categories.user_id AS category_user_id
+          ${TASK_COLUMNS}
         FROM tasks
         INNER JOIN categories
           ON tasks.category_id = categories.id
@@ -275,10 +281,7 @@ const store = async (req, res) => {
     const [tasks] = await connection.query(
       `
         SELECT
-          tasks.*,
-          categories.id AS category_id,
-          categories.name AS category_name,
-          categories.user_id AS category_user_id
+          ${TASK_COLUMNS}
         FROM tasks
         INNER JOIN categories
           ON tasks.category_id = categories.id
@@ -329,7 +332,7 @@ const update = async (req, res) => {
     }
 
     const [existingTasks] = await connection.query(
-      "SELECT * FROM tasks WHERE id = ?",
+      "SELECT id, title, description, status, category_id, user_id FROM tasks WHERE id = ?",
       [id],
     );
 
@@ -419,10 +422,7 @@ const update = async (req, res) => {
     const [tasks] = await connection.query(
       `
         SELECT
-          tasks.*,
-          categories.id AS category_id,
-          categories.name AS category_name,
-          categories.user_id AS category_user_id
+          ${TASK_COLUMNS}
         FROM tasks
         INNER JOIN categories
           ON tasks.category_id = categories.id
@@ -473,10 +473,7 @@ const destroy = async (req, res) => {
     const [tasks] = await connection.query(
       `
         SELECT
-          tasks.*,
-          categories.id AS category_id,
-          categories.name AS category_name,
-          categories.user_id AS category_user_id
+          ${TASK_COLUMNS}
         FROM tasks
         INNER JOIN categories
           ON tasks.category_id = categories.id
