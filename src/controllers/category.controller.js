@@ -2,45 +2,20 @@ const { v4: uuidv4 } = require("uuid");
 
 const pool = require("../db/connection");
 const { categoryDecorator } = require("../decorators/category.decorator");
-const AppError = require("../utils/app-error");
 const catchAsync = require("../utils/catch-async");
 const paginate = require("../utils/paginate");
+const notFound = require("../utils/not-found");
+const validateUniqueField = require("../utils/validate-unique-field");
 
-const notFound = (id) => {
-  throw new AppError(
-    `No query results for model [App\\Models\\Category] ${id}`,
-    404,
-  );
-};
-
-const validateName = async ({ name, excludeId, required }) => {
-  const errors = {};
-
-  if (required && !name) {
-    errors.name = ["The name field is required."];
-  } else if (name !== undefined) {
-    if (typeof name !== "string") {
-      errors.name = ["The name must be a string."];
-    } else if (name.length > 255) {
-      errors.name = ["The name must not be greater than 255 characters."];
-    } else {
-      const query = excludeId
-        ? "SELECT id FROM categories WHERE name = ? AND id != ?"
-        : "SELECT id FROM categories WHERE name = ?";
-      const params = excludeId ? [name, excludeId] : [name];
-
-      const [existing] = await pool.query(query, params);
-
-      if (existing.length > 0) {
-        errors.name = ["The name has already been taken."];
-      }
-    }
-  }
-
-  if (Object.keys(errors).length > 0) {
-    throw new AppError("The given data was invalid.", 422, errors);
-  }
-};
+const validateName = ({ name, excludeId, required }) =>
+  validateUniqueField({
+    pool,
+    table: "categories",
+    field: "name",
+    value: name,
+    excludeId,
+    required,
+  });
 
 const index = catchAsync(async (req, res) => {
   const page = parseInt(req.query.page, 10) || 1;
@@ -73,7 +48,7 @@ const show = catchAsync(async (req, res) => {
   );
 
   if (categories.length === 0) {
-    notFound(id);
+    notFound("Category", id);
   }
 
   return res.status(200).json({ data: categoryDecorator(categories[0]) });
@@ -110,7 +85,7 @@ const update = catchAsync(async (req, res) => {
   );
 
   if (existing.length === 0) {
-    notFound(id);
+    notFound("Category", id);
   }
 
   await validateName({ name, excludeId: id, required: false });
@@ -135,7 +110,7 @@ const destroy = catchAsync(async (req, res) => {
   ]);
 
   if (result.affectedRows === 0) {
-    notFound(id);
+    notFound("Category", id);
   }
 
   return res.status(200).json({ message: "Categoría eliminada" });
